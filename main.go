@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
-	"github.com/leogsouza/blogbackend/database"
+	"github.com/leogsouza/blog-go-react/database"
 )
 
 func main() {
