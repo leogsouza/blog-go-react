@@ -1,12 +1,13 @@
 package database
 
 import (
-"log"
-"os"
+	"log"
+	"os"
 
-"github.com/joho/godotenv"
-"gorm.io/gorm"
-"gorm.io/driver/mysql"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"github.com/leogsouza/blog-go-react/models"
 )
 
 var DB *gorm.DB
@@ -23,7 +24,12 @@ func Connect() {
 	if err != nil {
 		panic("Could not connect to the database")
 	}
+	log.Println("connect successfully")
 
 	DB = database
-	
+
+	database.AutoMigrate(
+		&models.User{},
+	)
+
 }
