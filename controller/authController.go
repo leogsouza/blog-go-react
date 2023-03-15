@@ -1,14 +1,19 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/leogsouza/blog-go-react/database"
 	"github.com/leogsouza/blog-go-react/models"
+	"github.com/leogsouza/blog-go-react/util"
+	"gorm.io/gorm"
 )
 
 func validateEmail(email string) bool {
@@ -68,4 +73,70 @@ func Register(c *fiber.Ctx) error {
 		"message": "Account created successfully",
 		"user":    user,
 	})
+}
+
+func getUserByEmail(e string) (*models.User, error) {
+	db := database.DB
+	var user models.User
+
+	if err := db.Where(&models.User{Email: e}).Find(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("user not found")
+		}
+
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func Login(c *fiber.Ctx) error {
+
+	type loginInput struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	input := new(loginInput)
+	var userData *models.User
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Error on login request", "data": err,
+		})
+	}
+
+	userData, err := getUserByEmail(input.Email)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Error on login request", "data": err,
+		})
+	}
+
+	if err := userData.ComparePassword(input.Password); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid credentials", "data": err,
+		})
+	}
+
+	token, err := util.GenerateJwt(strconv.Itoa(int(userData.ID)))
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid credentials", "data": err,
+		})
+	}
+
+	cookie := fiber.Cookie{
+		Name:     "jwt",
+		Value:    token,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HTTPOnly: true,
+	}
+	c.Cookie(&cookie)
+
+	return c.JSON(fiber.Map{
+		"message": "Successfully login",
+		"user":    userData,
+	})
+
 }
